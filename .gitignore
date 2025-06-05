@@ -1,0 +1,39 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+env/
+venv/
+ENV/
+.venv/
+
+# VSCode settings
+.vscode/
+
+# macOS files
+.DS_Store
+
+# Python logs and cache
+*.log
+*.sqlite3
+
+# Pipenv
+Pipfile.lock
+
+# Environment variables file
+.env
+
+# Pytest cache
+.pytest_cache/
+
+# mypy cache
+.mypy_cache/
+
+# Coverage reports
+htmlcov/
+.coverage
+
+# Render specific (if you have)
+render.yaml
