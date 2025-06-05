@@ -1,18 +1,11 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
-import os
-import uuid
-import requests
-from dotenv import load_dotenv
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-
-# Load environment variables
-load_dotenv()
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+import uuid
+from datetime import datetime
 
 app = FastAPI()
 
-# cors enabling for cross origin requests
+# Enable CORS for all origins (adjust if needed)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,66 +14,72 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Chat memory and sytem prompt given to the model
+# In-memory message store
 chat_memory = {}
 MAX_MESSAGES = 10
+
 SYSTEM_PROMPT = {
     "role": "system",
-    "content": (
-        "You are a helpful first-aid assistant. "
-        "When answering, ALWAYS use short BULLET POINTS. "
-        "Use EMOJIS relevant to the context. "
-        "CAPITALIZE IMPORTANT WORDS or PHRASES to emphasize them. "
-        "Keep the answer CONCISE and EASY TO UNDERSTAND."
-    )
+    "content": "You are a helpful medical assistant who gives short, bullet-point first-aid advice with emojis and emphasis on important words."
 }
 
+# Static FAQs
+FAQS = [
+    {
+        "question": "What should I do if I get a minor cut?",
+        "answer": "Clean the wound, apply pressure, use a bandage."
+    },
+    {
+        "question": "How do I treat a burn?",
+        "answer": "Cool with water, don't apply ice, loosely cover it."
+    },
+    {
+        "question": "When to call emergency services?",
+        "answer": "Unconsciousness, heavy bleeding, or breathing issues."
+    },
+    {
+        "question": "How to stop a nosebleed?",
+        "answer": "Pinch nose, lean forward, avoid tilting head back."
+    }
+]
+
+@app.get("/")
+async def root():
+    return {"message": "First Aid Chatbot API is running."}
 
 
-class ChatRequest(BaseModel): #input of the model 
-    message: str
-    session_id: str | None = None
-
-# API endpoint (/chat) with post request 
 @app.post("/chat")
-async def chat(req: ChatRequest):
-    session_id = req.session_id or str(uuid.uuid4()) # creating a new session ID if not provided
+async def chat(request: Request):
+    data = await request.json()
+    message = data.get("message")
+    session_id = data.get("session_id") or str(uuid.uuid4())
 
-    # Initialize memory if new session
+    # Initialize session
     if session_id not in chat_memory:
         chat_memory[session_id] = [SYSTEM_PROMPT]
 
-    # adding memory to the chat history
-    chat_memory[session_id].append({"role": "user", "content": req.message})
+    # Add user's message to history
+    chat_memory[session_id].append({"role": "user", "content": message})
 
-    # deleting extra messages if the memory exceeds the limit
+    # Trim history to max messages
     if len(chat_memory[session_id]) > MAX_MESSAGES:
         chat_memory[session_id] = [SYSTEM_PROMPT] + chat_memory[session_id][-MAX_MESSAGES + 1:]
 
-    # Call Groq API
-    response = requests.post(
-        "https://api.groq.com/openai/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {GROQ_API_KEY}",
-            "Content-Type": "application/json"
-        },
-        json={
-            "model": "llama3-8b-8192",
-            "messages": chat_memory[session_id]
-        }
+    # --- Replace this with real Groq call later ---
+    reply = (
+        "🚨 **FIRST AID STEPS**:\n"
+        "• 🩸 **STOP THE BLEEDING** with pressure\n"
+        "• 🧼 **CLEAN** the wound gently\n"
+        "• 🩹 **COVER** with a sterile bandage\n"
+        "• 🏥 **SEE A DOCTOR** if it’s deep or keeps bleeding"
     )
 
-    res_data = response.json()
-    bot_reply = res_data["choices"][0]["message"]["content"]
-    chat_memory[session_id].append({"role": "assistant", "content": bot_reply})
+    # Add reply to chat history
+    chat_memory[session_id].append({"role": "assistant", "content": reply})
 
     return {
         "session_id": session_id,
-        "reply": bot_reply,
-        "history": chat_memory[session_id]
+        "reply": reply,
+        "chat_history": chat_memory[session_id],
+        "faqs": FAQS
     }
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
-
-# this is for telling render where to port it
