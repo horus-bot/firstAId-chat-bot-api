@@ -35,5 +35,4 @@ Pipfile.lock
 htmlcov/
 .coverage
 
-# Render specific (if you have)
-render.yaml
+
